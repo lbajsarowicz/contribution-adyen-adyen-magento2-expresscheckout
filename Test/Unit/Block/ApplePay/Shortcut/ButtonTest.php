@@ -15,6 +15,9 @@ use Magento\Checkout\Model\Session;
 use Magento\Customer\Model\Session as CustomerSession;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\UrlInterface;
+use Magento\Directory\Api\CountryInformationAcquirerInterface;
+use Magento\Directory\Api\Data\CountryInformationInterface;
+use Magento\Framework\Reflection\DataObjectProcessor;
 use Magento\Framework\View\Element\Template\Context;
 use Magento\Payment\Model\MethodInterface;
 use Magento\Store\Api\Data\StoreInterface;
@@ -64,8 +67,15 @@ class ButtonTest extends AbstractAdyenTestCase
         $adyenHelperMock->method('getCheckoutEnvironment')->willReturn('test');
         $expressConfigMock->method('getApplePayButtonColor')->willReturn('black');
 
-        $countriesMock = $this->createMock(Countries::class);
-        $countriesMock->method('getCountries')->willReturn($this->countries);
+        $country = $this->createMock(CountryInformationInterface::class);
+        $country->method('getFullNameLocale')->willReturn('Netherlands');
+        $countryInformationAcquirer = $this->createMock(CountryInformationAcquirerInterface::class);
+        $countryInformationAcquirer->method('getCountriesInfo')->willReturn([$country]);
+        $dataProcessor = $this->createMock(DataObjectProcessor::class);
+        $dataProcessor->method('buildOutputDataArray')
+            ->with($country, CountryInformationInterface::class)
+            ->willReturn($this->countries[0]);
+        $countries = new Countries($countryInformationAcquirer, $dataProcessor);
 
         $this->subject = new Button(
             $this->createMock(Context::class),
@@ -80,12 +90,12 @@ class ButtonTest extends AbstractAdyenTestCase
             $configHelperMock,
             $this->createMock(DefaultConfigProvider::class),
             $expressConfigMock,
-            $countriesMock
+            $countries
         );
     }
 
     #[Test]
-    public function build_configuration_uses_applepay_variant_key(): void
+    public function testBuildConfigurationUsesApplepayVariantKey(): void
     {
         $result = $this->subject->buildConfiguration();
 

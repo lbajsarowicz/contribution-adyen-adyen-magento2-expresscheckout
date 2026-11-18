@@ -100,6 +100,8 @@ class LineItemsDataBuilderTest extends AbstractAdyenTestCase
         $this->assertSame([0, 1], array_keys($result['lineItems']));
 
         // each item is an array (don’t care about the keys/values)
-        $this->assertContainsOnlyArray($result['lineItems']);
+        foreach ($result['lineItems'] as $lineItem) {
+            $this->assertIsArray($lineItem);
+        }
     }
 }

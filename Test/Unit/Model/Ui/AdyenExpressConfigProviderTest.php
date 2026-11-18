@@ -17,6 +17,9 @@ use Adyen\Payment\Model\AdyenAmountCurrency;
 use Adyen\Payment\Test\Unit\AbstractAdyenTestCase;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\UrlInterface;
+use Magento\Directory\Api\CountryInformationAcquirerInterface;
+use Magento\Directory\Api\Data\CountryInformationInterface;
+use Magento\Framework\Reflection\DataObjectProcessor;
 use Magento\Quote\Model\Quote;
 use Magento\Store\Api\Data\StoreInterface;
 use Magento\Store\Model\ScopeInterface;
@@ -36,7 +39,9 @@ class AdyenExpressConfigProviderTest extends AbstractAdyenTestCase
     protected Data|MockObject $adyenHelperMock;
     protected ScopeConfigInterface|MockObject $scopeConfigMock;
     protected UrlInterface|MockObject $urlMock;
-    protected Countries|MockObject $countriesMock;
+    protected Countries $countries;
+    protected CountryInformationAcquirerInterface|MockObject $countryInformationAcquirerMock;
+    protected DataObjectProcessor|MockObject $dataProcessorMock;
 
 
     public function setUp(): void
@@ -50,7 +55,9 @@ class AdyenExpressConfigProviderTest extends AbstractAdyenTestCase
         $this->adyenHelperMock = $this->createPartialMock(Data::class, []);
         $this->scopeConfigMock = $this->createMock(ScopeConfigInterface::class);
         $this->urlMock = $this->createMock(UrlInterface::class);
-        $this->countriesMock = $this->createMock(Countries::class);
+        $this->countryInformationAcquirerMock = $this->createMock(CountryInformationAcquirerInterface::class);
+        $this->dataProcessorMock = $this->createMock(DataObjectProcessor::class);
+        $this->countries = new Countries($this->countryInformationAcquirerMock, $this->dataProcessorMock);
 
         $this->adyenExpressConfigProvider = new AdyenExpressConfigProvider(
             $this->configHelperMock,
@@ -61,7 +68,7 @@ class AdyenExpressConfigProviderTest extends AbstractAdyenTestCase
             $this->adyenHelperMock,
             $this->scopeConfigMock,
             $this->urlMock,
-            $this->countriesMock
+            $this->countries
         );
     }
 
@@ -126,9 +133,15 @@ class AdyenExpressConfigProviderTest extends AbstractAdyenTestCase
             ->willReturn($applepayButtonColor);
 
         $countries = [['id' => 'NL', 'full_name_locale' => 'Netherlands']];
-        $this->countriesMock->expects($this->once())
-            ->method('getCountries')
-            ->willReturn($countries);
+        $country = $this->createMock(CountryInformationInterface::class);
+        $country->method('getFullNameLocale')->willReturn('Netherlands');
+        $this->countryInformationAcquirerMock->expects($this->once())
+            ->method('getCountriesInfo')
+            ->willReturn([$country]);
+        $this->dataProcessorMock->expects($this->once())
+            ->method('buildOutputDataArray')
+            ->with($country, CountryInformationInterface::class)
+            ->willReturn($countries[0]);
 
         // Call the method
         $result = $this->adyenExpressConfigProvider->getConfig();
